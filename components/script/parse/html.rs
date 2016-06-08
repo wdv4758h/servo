@@ -39,7 +39,9 @@ use std::io::{self, Write};
 use string_cache::QualName;
 use url::Url;
 
-fn insert(parent: &Node, reference_child: Option<&Node>, child: NodeOrText<JS<Node>>) {
+fn insert(document: &Document, parent: &Node, reference_child: Option<&Node>,
+          child: NodeOrText<JS<Node>>) {
+    document.increment_dom_count();
     match child {
         NodeOrText::AppendNode(n) => {
             assert!(parent.InsertBefore(&n, reference_child).is_ok());
@@ -108,7 +110,7 @@ impl<'a> TreeSink for servohtmlparser::Sink {
             None => return Err(new_node),
         };
 
-        insert(&parent, Some(&*sibling), new_node);
+        insert(&*self.document, &parent, Some(&*sibling), new_node);
         Ok(())
     }
 
@@ -122,7 +124,7 @@ impl<'a> TreeSink for servohtmlparser::Sink {
 
     fn append(&mut self, parent: JS<Node>, child: NodeOrText<JS<Node>>) {
         // FIXME(#3701): Use a simpler algorithm and merge adjacent text nodes
-        insert(&parent, None, child);
+        insert(&*self.document, &parent, None, child);
     }
 
     fn append_doctype_to_document(&mut self, name: StrTendril, public_id: StrTendril,
@@ -143,6 +145,7 @@ impl<'a> TreeSink for servohtmlparser::Sink {
     }
 
     fn remove_from_parent(&mut self, target: JS<Node>) {
+        self.document.decrement_dom_count();
         if let Some(ref parent) = target.GetParentNode() {
             parent.RemoveChild(&*target).unwrap();
         }
