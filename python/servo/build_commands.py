@@ -132,6 +132,9 @@ class MachCommands(CommandBase):
     @CommandArgument('--dev', '-d',
                      action='store_true',
                      help='Build in development mode')
+    @CommandArgument('--check', '-c',
+                     action='store_true',
+                     help='Build in check mode')
     @CommandArgument('--jobs', '-j',
                      default=None,
                      help='Number of jobs to run in parallel')
@@ -152,7 +155,7 @@ class MachCommands(CommandBase):
                      help='Print verbose output')
     @CommandArgument('params', nargs='...',
                      help="Command-line arguments to be passed through to Cargo")
-    def build(self, target=None, release=False, dev=False, jobs=None,
+    def build(self, target=None, release=False, dev=False, check=False, jobs=None,
               features=None, android=None, verbose=False, debug_mozjs=False, params=None):
         if android is None:
             android = self.config["build"]["android"]
@@ -167,7 +170,7 @@ class MachCommands(CommandBase):
         release_exists = path.exists(release_path)
         dev_exists = path.exists(dev_path)
 
-        if not (release or dev):
+        if not (release or dev or check):
             if self.config["build"]["mode"] == "dev":
                 dev = True
             elif self.config["build"]["mode"] == "release":
@@ -201,6 +204,9 @@ class MachCommands(CommandBase):
             opts += ["-v"]
         if android:
             target = self.config["android"]["target"]
+
+        if check:
+            opts += ["-Zno-trans"]
 
         if target:
             opts += ["--target", target]
@@ -245,8 +251,9 @@ class MachCommands(CommandBase):
             if "msvc" not in host_triple():
                 env[b'RUSTFLAGS'] = b'-C link-args=-Wl,--subsystem,windows'
 
+        print(opts)
         status = call(
-            [cargo_binary, "build"] + opts,
+            [cargo_binary, "rustc"] + opts,
             env=env, cwd=self.servo_crate(), verbose=verbose)
         elapsed = time() - build_start
 
